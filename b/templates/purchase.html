@@ -1,0 +1,508 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Stock - MediTrack</title>
+    <link rel="stylesheet" href="{% static 'tanu/styles.css' %}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <!-- Tom Select CSS -->
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<!-- Tom Select JS -->
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+<style>
+  /* Ensures modal sits on top */
+#purchase-modal {
+  z-index: 9999;
+}
+
+/* Autocomplete container with proper layout */
+.autocomplete-container {
+  position: relative;
+  flex: 0 0 160px;
+  width: 160px;
+}
+
+/* Search input inside autocomplete */
+.autocomplete-container input.product-search {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+/* Dropdown list */
+.autocomplete-results {
+  position: absolute;
+  top: 100%; /* directly under input */
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: white;
+  border: 1px solid #ccc;
+  max-height: 150px;
+  overflow-y: auto;
+  display: none; /* Hidden by default */
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Show only when needed */
+.autocomplete-results.active {
+  display: block;
+}
+
+/* Suggestions style */
+.autocomplete-results li {
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.autocomplete-results li:hover {
+  background-color: #f0f0f0;
+}
+
+/* Product row: scrollable and aligned */
+.product-entry {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  align-items: center;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+/* Input fields */
+.product-entry input {
+  flex: 0 0 120px;
+  min-width: 100px;
+  padding: 6px 8px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+      let productIndex = 1;
+    
+      document.querySelector('.add-product').addEventListener('click', function () {
+        const productsList = document.querySelector('.products-list');
+        const existingEntry = productsList.querySelector('.product-entry');
+        const newEntry = existingEntry.cloneNode(true);
+    
+        // Reset input values
+        newEntry.querySelectorAll('input').forEach(input => {
+          if (input.type !== 'hidden') {
+            input.value = '';
+          } else {
+            input.value = '';
+          }
+        });
+    
+        // Update name attributes to reflect the new index
+        newEntry.querySelectorAll('input[name]').forEach(input => {
+          const name = input.getAttribute('name');
+          const updatedName = name.replace(/\[\d+\]/, `[${productIndex}]`);
+          input.setAttribute('name', updatedName);
+        });
+    
+        // Clear autocomplete suggestions
+        const resultsList = newEntry.querySelector('.autocomplete-results');
+        if (resultsList) resultsList.innerHTML = '';
+    
+        // Append the new entry
+        productsList.appendChild(newEntry);
+        productIndex++;
+      });
+    
+      // Remove product entry
+      document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('remove-product')) {
+          const entry = e.target.closest('.product-entry');
+          if (document.querySelectorAll('.product-entry').length > 1) {
+            entry.remove();
+          } else {
+            alert("At least one product is required.");
+          }
+        }
+      });
+    });
+    </script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=50&h=50&fit=crop" alt="Logo" class="nav-logo">
+            <h1>MediTrack</h1>
+        </div>
+        <div class="nav-links">
+<a href="{% url 'index' %}" class="{% if request.path == '/index/' %}active{% endif %}">Dashboard</a>
+<a href="{% url 'purchase' %}" class="{% if request.path == '/purchase/' %}active{% endif %}">Purchase Stock</a>
+<a href="{% url 'sales' %}" class="{% if request.path == '/sales/' %}active{% endif %}">Sales</a>
+      <a href="{% url 'reports' %}" class="{% if request.path == '/reports/' %}active{% endif %}">Reports</a>
+        </div>
+    </nav>
+
+    <main class="dashboard">
+        <div class="dashboard-header">
+            <h2>Purchase Stock</h2>
+            <button onclick="showModal('newPurchaseModal')" class="btn-primary">New Purchase</button>
+        </div>
+
+        <div id="newPurchaseModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>New Purchase</h2>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="purchaseForm" method="POST">
+                        {% csrf_token %}
+                        <div class="form-group">
+                            <label for="supplier">Supplier</label>
+                            <input type="text" id="supplier" name="supplier" required placeholder="Enter supplier name">
+                        </div>
+                        <div class="form-group">
+                            <label for="invoiceNumber">Invoice Number</label>
+                            <input type="text" id="invoiceNumber" name="invoiceNumber" required placeholder="Enter invoice number">
+                        </div>
+                        <div class="form-group">
+                            <label for="purchaseDate">Purchase Date</label>
+                            <input type="date" id="purchaseDate" name="purchaseDate" required>
+                        </div>
+
+                        <!-- Products Section -->
+                        <div class="products-list">
+                            <h3>Products</h3>
+                            
+                           <div class="product-entry">
+  <div class="field-wrap">
+    <div class="autocomplete-container">
+      <input type="text" class="product-search" placeholder="Search product..." />
+      <input type="hidden" name="products[0].id" class="product-id">
+      <input type="hidden" name="products[0].name" class="product-name">
+      <ul class="autocomplete-results"></ul>
+    </div>
+  </div>
+
+  <input type="text" placeholder="Batch Code" name="products[0].batchCode" required>
+  <input type="text" placeholder="HSN Code" name="products[0].hsn" required>
+  <input type="date" placeholder="Expiry Date" name="products[0].expiry" required>
+  <input type="number" placeholder="Strips" name="products[0].strips" required min="1">
+  <input type="number" placeholder="Tablets per Strip" name="products[0].tablets" required min="1">
+<input type="number" placeholder="Boxes" name="products[0].boxes" class="quantity" required min="1">
+<input type="number" placeholder="Rate (₹/Box)" name="products[0].rate" class="rate" required min="0" step="0.01">
+<input type="number" placeholder="Amount (₹)" name="products[0].amount" class="amount" readonly>
+
+  <input type="number" placeholder="MRP (₹)" name="products[0].mrp" required min="0" step="0.01">
+
+  <button type="button" class="remove-product">&times;</button>
+</div>
+  
+                            
+                          </div>
+                          
+                          <button type="button" class="add-product">+ Add Product</button>
+                          
+
+                        <!-- GST and Discount -->
+                        <div class="form-group">
+                            <label for="gstPercent" id="gstLabel">GST (%)</label>
+                            <input type="number" id="gstPercent" name="gstPercent" value="0" required min="0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="discount">Discount (₹)</label>
+                            <input type="number" id="discount" name="discount" value="0" min="0" step="0.01">
+                        </div>
+
+                        <!-- Total Calculation -->
+                        <div class="total-section">
+                            <div class="total-row">
+                                <span>Subtotal:</span>
+                                <span id="subtotal">₹0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>GST:</span>
+                                <span id="gst-amount">₹0.00</span>
+                            </div>
+                            <div class="total-row">
+                                <span>Discount:</span>
+                                <span id="discount-amount">₹0.00</span>
+                            </div>
+                            <div class="total-row grand-total">
+                                <span>Grand Total:</span>
+                                <span id="grand-total">₹0.00</span>
+                                <input type="hidden" name="grandTotal" id="grandTotalInput">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary" onclick="hideModal('newPurchaseModal')">Cancel</button>
+                    <button type="submit" form="purchaseForm" class="btn-primary">Complete Purchase</button>
+                </div>
+            </div>
+        </div>
+
+            <div class="purchase-list">
+                {% for recent_purchase in recent_purchases %}
+                <div class="purchase-card">
+                    <div class="purchase-header">
+                        <div>
+                            <h3>{{ recent_purchase.supplier }}</h3>
+                            <span class="invoice-number">{{ recent_purchase.invoice_number }}</span>
+                        </div>
+                        <div class="purchase-status completed">Completed</div>
+                    </div>
+                    <div class="purchase-details">
+                        <div class="detail-row">
+                            <span>Date:</span>
+                            <span>{{ recent_purchase.purchase_date }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Items:</span>
+                            <span>{{ recent_purchase.total_items }}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Total Amount:</span>
+                            <span class="amount">{{recent_purchase.total_amount}}</span>
+                        </div>
+                    </div>
+                    <div class="purchase-actions">
+                      <button class="view-details-btn" data-purchase-id="{{ recent_purchase.id }}">View Details</button>
+                      <button class="btn-secondary">Download Invoice</button>
+                    </div>
+                </div> 
+                {% endfor %}
+
+                <div class="purchase-card">
+                    <div class="purchase-header">
+                        <div>
+                            <h3>XYZ Medical Supplies</h3>
+                            <span class="invoice-number">INV-2024-002</span>
+                        </div>
+                        <div class="purchase-status pending">Pending</div>
+                    </div>
+                    <div class="purchase-details">
+                        <div class="detail-row">
+                            <span>Date:</span>
+                            <span>March 14, 2024</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Items:</span>
+                            <span>8 products</span>
+                        </div>
+                        <div class="detail-row">
+                            <span>Total Amount:</span>
+                            <span class="amount">₹12,750</span>
+                        </div>
+                    </div>
+                    <div class="purchase-actions">
+                        <button class="btn-secondary">View Details</button>
+                        <button class="btn-primary">Complete Purchase</button>
+                    </div>
+                </div>
+            </div>
+            <div class="pagination" style="margin: 20px; text-align: center;">
+  {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary" style="margin-right: 10px;">&laquo; Prev</a>
+  {% endif %}
+
+  <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+  {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}" class="btn-secondary" style="margin-left: 10px;">Next &raquo;</a>
+  {% endif %}
+</div>
+
+        </div>
+        <!-- Purchase Detail Modal -->
+
+ <!-- Modal -->
+<div id="purchase-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center transition-all">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 sm:mx-8 p-6 relative animate-fadeIn max-h-[90vh] overflow-y-auto">
+    
+    <!-- Close Button -->
+    <button id="close-modal" class="absolute top-3 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold focus:outline-none">
+      &times;
+    </button>
+
+    <!-- Header -->
+    <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">📦 Purchase Details</h2>
+
+    <!-- Purchase Info -->
+    <div id="purchase-details" class="text-sm space-y-2 text-gray-700">
+      <!-- Content dynamically inserted here -->
+    </div>
+  </div>
+</div>
+
+<!-- Tailwind Animate (optional) -->
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+</style>
+
+  
+    </main>
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+      
+      document.addEventListener('input', function (e) {
+        if (e.target.classList.contains('product-search')) {
+            const input = e.target;
+            const container = input.closest('.autocomplete-container');
+            const resultList = container.querySelector('.autocomplete-results');
+    
+            const query = input.value.trim();
+            if (query.length < 1) {
+                resultList.innerHTML = '';
+                return;
+            }
+
+    
+            fetch(`/ajax/get-products/?term=${encodeURIComponent(query)}`)
+  .then(response => response.json())
+  .then(data => {
+    resultList.innerHTML = '';
+
+    if (data.length > 0) {
+      data.forEach(product => {
+        const li = document.createElement('li');
+        li.textContent = product.name;
+        li.dataset.id = product.id;
+        resultList.appendChild(li);
+      });
+      resultList.classList.add('active'); // show dropdown
+    } else {
+      resultList.classList.remove('active'); // hide dropdown
+    }
+  });
+
+        }
+    });
+    
+    // When an item is selected from suggestions
+    document.addEventListener('click', function (e) {
+        if (e.target.tagName === 'LI' && e.target.parentElement.classList.contains('autocomplete-results')) {
+            const li = e.target;
+            const container = li.closest('.autocomplete-container');
+            const input = container.querySelector('.product-search');
+            const hiddenIdInput = container.querySelector('.product-id');
+            const hiddenNameInput = container.querySelector('.product-name');
+    
+            input.value = li.textContent;
+            hiddenIdInput.value = li.dataset.id;
+            hiddenNameInput.value = li.textContent;
+    
+            container.querySelector('.autocomplete-results').innerHTML = '';
+        } else {
+            document.querySelectorAll('.autocomplete-results').forEach(ul => ul.innerHTML = '');
+        }
+        
+    });
+    
+    // When user types a new medicine and leaves the input (not selecting from list)
+    document.addEventListener('blur', function (e) {
+        if (e.target.classList.contains('product-search')) {
+            const input = e.target;
+            const container = input.closest('.autocomplete-container');
+            const hiddenIdInput = container.querySelector('.product-id');
+            const hiddenNameInput = container.querySelector('.product-name');
+    
+            if (!hiddenIdInput.value && input.value.trim()) {
+                hiddenIdInput.value = ''; // No product ID for custom name
+                hiddenNameInput.value = input.value.trim();
+            }
+        }
+    }, true); // Use capture to catch blur event properly
+    
+    // Ensure hidden inputs are updated before form submission (safety net)
+    document.getElementById('purchaseForm').addEventListener('submit', function () {
+        document.querySelectorAll('.autocomplete-container').forEach(container => {
+            const input = container.querySelector('.product-search');
+            const hiddenIdInput = container.querySelector('.product-id');
+            const hiddenNameInput = container.querySelector('.product-name');
+    
+            if (!hiddenIdInput.value && input.value.trim()) {
+                hiddenIdInput.value = '';
+                hiddenNameInput.value = input.value.trim();
+            }
+        });
+    });
+    
+      
+        </script>
+        <script>
+          document.addEventListener('DOMContentLoaded', function () {
+            const modal = document.getElementById('purchase-modal');
+            const modalContent = document.getElementById('purchase-details');
+            const closeModal = document.getElementById('close-modal');
+          
+            document.querySelectorAll('.view-details-btn').forEach(btn => {
+              btn.addEventListener('click', function () {
+                const purchaseId = this.dataset.purchaseId;
+                modalContent.innerHTML = '<p class="text-center text-gray-500">Loading...</p>';
+          
+                fetch(`/ajax/purchase-details/${purchaseId}/`)
+                  .then(response => response.json())
+                  .then(data => {
+                    const batchList = data.batches.map(batch => `
+  <div class="p-3 bg-gray-100 rounded-md shadow-sm">
+    <div class="font-semibold text-gray-800">${batch.medicine}</div>
+    <div class="text-sm text-gray-700">
+      Batch: ${batch.batch_code}, Qty: ${batch.quantity}, MRP: ₹${batch.mrp}, 
+      Cost: ₹${batch.cost_price}, Exp: ${batch.expiry_date}
+    </div>
+  </div>
+`).join('');
+
+modalContent.innerHTML = `
+  <p><strong>Distributor:</strong> ${data.distributor}</p>
+  <p><strong>Invoice No:</strong> ${data.invoice_number}</p>
+  <p><strong>Date:</strong> ${data.purchase_date}</p>
+  <p><strong>GST:</strong> ₹${data.gst}</p>
+  <p><strong>Discount:</strong> ₹${data.discount}</p>
+  <p><strong>Subtotal:</strong> ₹${data.sub_total}</p>
+  <p><strong>Total:</strong> ₹${data.total_amount}</p>
+  <hr class="my-2" />
+  <h3 class="font-semibold text-gray-800">Batches</h3>
+  <div class="max-h-64 overflow-y-auto space-y-2 pr-1">
+    ${batchList}
+  </div>
+`;
+
+          
+                    modal.classList.remove('hidden');
+                  })
+                  .catch(error => {
+                    modalContent.innerHTML = `<p class="text-red-600">Failed to load details.</p>`;
+                    console.error(error);
+                  });
+              });
+            });
+          
+            closeModal.addEventListener('click', () => {
+              modal.classList.add('hidden');
+            });
+          });
+          
+          
+          
+          </script>
+          
+        
+
+</body>
+</html>

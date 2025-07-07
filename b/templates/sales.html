@@ -1,0 +1,651 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sales - MediTrack</title>
+  <link rel="stylesheet" href="{% static 'tanu/styles.css' %}">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"/>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    .popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.popup-content {
+  background: #fff;
+  padding: 25px 30px;
+  border-radius: 10px;
+  text-align: center;
+  min-width: 300px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  position: relative;
+}
+
+.popup-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #333;
+}
+
+.popup-text.error {
+  color: #e53935;
+}
+
+.popup-text.success {
+  color: #4caf50;
+}
+
+.popup-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+    
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin-top: 20px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+  
+      .data-table thead {
+        background-color: #0077b6;
+        color: white;
+        text-align: left;
+      }
+      
+      .data-table th{
+        padding: 14px 50px;                                       
+      }
+      
+      .data-table td {
+        padding: 12px 60px;
+      }
+      
+      .data-table tbody tr {
+        background-color: white;
+        transition: background-color 0.2s ease-in-out;
+      }
+      
+      .data-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      
+      .data-table tbody tr:hover {
+        background-color: #e6f4ff;
+        cursor: pointer;
+      }
+      
+      .data-table th:first-child,
+      .data-table td:first-child {
+        border-top-left-radius: 12px;
+      }
+      
+      .data-table th:last-child,
+      .data-table td:last-child {
+        border-top-right-radius: 12px;
+      }
+      
+      .data-table tbody tr:last-child td:first-child {
+        border-bottom-left-radius: 12px;
+      }
+      
+      .data-table tbody tr:last-child td:last-child {
+        border-bottom-right-radius: 12px;
+      }
+      .autocomplete-container {
+        position: relative;
+      }
+      
+      .autocomplete-results {
+        position: absolute;
+        z-index: 1000;
+        background-color: white;
+        border: 1px solid #ccc;
+        max-height: 150px;
+        overflow-y: auto;
+        width: 100%;
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      
+      .autocomplete-results li {
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+      
+      .autocomplete-results li:hover {
+        background-color: #f0f0f0;
+      }
+      
+
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-brand">
+      <img src="https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=50&h=50&fit=crop" alt="Logo" class="nav-logo">
+      <h1>MediTrack</h1>
+    </div>
+    <div class="nav-links">
+<a href="{% url 'index' %}" class="{% if request.path == '/index/' %}active{% endif %}">Dashboard</a>
+<a href="{% url 'purchase' %}" class="{% if request.path == '/purchase/' %}active{% endif %}">Purchase Stock</a>
+<a href="{% url 'sales' %}" class="{% if request.path == '/sales/' %}active{% endif %}">Sales</a>
+      <a href="{% url 'reports' %}" class="{% if request.path == '/reports/' %}active{% endif %}">Reports</a>
+    </div>
+  </nav>
+
+  <main class="dashboard">
+    <div class="dashboard-header">
+      <h2>Sales</h2>
+      <button onclick="showModal('newSaleModal')" class="btn-primary">+ Add Sale</button>
+      <div id="newSaleModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>New Sale</h2>
+                        <button class="close-btn">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="purchaseForm" method="POST">
+                          {% csrf_token %}
+                          <div class="form-group">
+                                <label for="supplier">Customer Name</label>
+                                <input type="text" id="supplier" required name="customer_name" placeholder="Enter supplier name">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="purchaseDate">Purchase Date</label>
+                                <input type="date" id="purchaseDate" name="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="referedDoctor">Referred Doctor</label>
+                                <input type="text" id="referedDoctor" name="refered_doctor" placeholder="Enter referred doctor name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="mobileNumber">Mobile Number</label>
+                                <input type="text" id="mobileNumber" name="mobile" placeholder="Enter mobile number" required>
+                            </div>
+                            
+                            <div class="products-list" style="overflow: visible;">
+                                <h3>Products</h3>
+                                <div class="product-entry" style="overflow: visible; width: 100%; width: 1200px;">
+                                  <div class="autocomplete-container">
+                                    <input type="text" name="product_name[]" class="product-search" style="overflow: visible;" placeholder="Search product..." autocomplete="off"  required>
+                                    <input type="hidden" name="product_id[]"> <!-- To store selected product ID -->
+                                    <ul class="autocomplete-results" style="overflow-y:scroll; overflow-x:auto;"></ul>
+                                  </div>
+                                  <input type="number" name="quantity[]" placeholder="Quantity" required min="1">
+                                  <input type="number" name="unit_price[]" placeholder="Unit Price" required min="0" step="0.01">
+                                  <input type="number" name="total[]" placeholder="Total" readonly>
+                                  <button type="button" class="remove-product">&times;</button>
+                                </div>
+                                
+                            </div>
+                            
+                            <button type="button" class="add-product">+ Add Product</button>
+
+                            <div class="form-group">
+                              <label for="gstPercent" id="gstLabel">GST (%)</label>
+                              <input type="number" id="gstPercent" name="gstPercent" value="0" required min="0" step="0.1">
+                          </div>
+                          <div class="form-group">
+                              <label for="discount">Discount (₹)</label>
+                              <input type="number" id="discount" name="discount" value="0" min="0" step="0.01">
+                          </div>
+                            <div class="total-section">
+                                <div class="total-row">
+                                    <span>Subtotal:</span>
+                                    <span>₹0.00</span>
+                                </div>
+                                <div class="total-row">
+                                    <span>GST (18%):</span>
+                                    <span>₹0.00</span>
+                                </div>
+                                <div class="total-row">
+                                  <span>Discount:</span>
+                                  <span id="discount-amount">₹0.00</span>
+                              </div>
+                                <div class="total-row grand-total">
+                                    <span>Grand Total:</span>
+                                    <span>₹0.00</span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="subtotal-hidden" name="subtotal">
+<input type="hidden" id="gst-hidden" name="gst">
+<input type="hidden" id="discount-hidden" name="discount">
+<input type="hidden" id="grandtotal-hidden" name="grandtotal">
+
+
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn-secondary">Cancel</button>
+                        <button class="btn-primary" type="submit">Complete Purchase</button>
+                    </div>
+                </div>
+              </form>
+            </div>
+
+    </div>
+
+    
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Customer Name</th>
+          <th>Items</th>
+          <th>Total Tablets</th>
+          <th>Total Price</th>
+          <th>  Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sale in sales_data %}
+        <tr>
+          <td>{{ sale.customer_name }}</td>
+          <td>{{ sale.medicine_list }}</td>
+          <td>{{ sale.total_items }}</td>
+          <td>₹{{ sale.total_price }}</td>
+          <td><button class="view-details-btn btn-secondary" data-sale-id="{{ sale.id }}">View Details</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="pagination" style="margin: 20px; text-align: center;">
+      {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" class="btn-secondary" style="margin-right: 10px;">&laquo; Prev</a>
+      {% endif %}
+    
+      <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="btn-secondary" style="margin-left: 10px;">Next &raquo;</a>
+      {% endif %}
+    </div>
+    
+    <!-- Sale Detail Modal -->
+<!-- Modal Overlay -->
+<div id="sale-modal" class="fixed inset-0 z-50 hidden bg-black bg-opacity-50 flex items-center justify-center">
+  <!-- Centered Modal Box -->
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6 mt-16 relative animate-fadeIn overflow-y-auto"
+     style="max-height: 90vh;">
+
+    <!-- Close Button -->
+    <button id="close-sale-modal"
+            class="absolute top-3 right-4 text-gray-500 hover:text-red-600 text-2xl font-bold focus:outline-none">
+      &times;
+    </button>
+
+    <!-- Header -->
+    <h2 class="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">🧾 Sale Details</h2>
+
+    <!-- Scrollable Content -->
+    <div id="sale-details" class="text-sm space-y-3 text-gray-700">
+      <!-- Example items (dynamically filled) -->
+      
+      <!-- More items will scroll this section -->
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-6 text-right">
+      <button id="download-btn" class="btn-primary mt-4">Download PDF</button>
+    </div>
+  </div>
+</div>
+{% if messages %}
+  <div id="message-popup" class="popup-overlay">
+    <div class="popup-content">
+      {% for message in messages %}
+        <p class="popup-text {% if message.tags %}{{ message.tags }}{% endif %}">
+          {{ message }}
+        </p>
+      {% endfor %}
+      <button id="popup-close-btn" class="popup-close">×</button>
+    </div>
+  </div>
+{% endif %}
+
+<div id="error-popup" style="display:none;
+     position: fixed;
+     top: 50%;
+     left: 50%;
+     transform: translate(-50%, -50%);
+     background-color: white;
+     border: 2px solid red;
+     border-radius: 10px;
+     padding: 20px 30px;
+     text-align: center;
+     z-index: 9999;
+     box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+  <p id="error-message" style="color: red; font-weight: bold;"></p>
+  <button onclick="document.getElementById('error-popup').style.display='none'" style="
+    margin-top: 10px;
+    padding: 6px 12px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 5px;">Close</button>
+</div>
+
+
+
+
+<div id="popup-warning" style="
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  color: #cc0000;
+  padding: 20px 30px;
+  border: 2px solid red;
+  border-radius: 10px;
+  z-index: 9999;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+">
+  <span id="popup-warning-text">Warning!</span><br><br>
+  <button onclick="document.getElementById('popup-warning').style.display='none'" style="
+    padding: 5px 15px;
+    background-color: #0077cc;
+    color: white;
+    border: none;
+    border-radius: 5px;
+  ">OK</button>
+</div>
+
+
+<!-- Optional Fade-In Animation -->
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+</style>
+
+
+
+
+<style>
+  .hidden { display: none; }
+</style>
+
+  </main>
+
+  <script src="{% static 'js/sale.js' %}"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const popup = document.getElementById('message-popup');
+    const closeBtn = document.getElementById('popup-close-btn');
+
+    if (popup && closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        popup.style.display = 'none';
+      });
+    }
+
+    // Optional: auto-close after 3 seconds
+    setTimeout(() => {
+      if (popup) popup.style.display = 'none';
+    }, 4000);
+  });
+</script>
+
+</body>
+<script>
+  document.querySelectorAll('.view-details-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.getElementById('sale-modal').classList.remove('hidden');
+    });
+  });
+
+  document.getElementById('close-sale-modal').addEventListener('click', () => {
+    document.getElementById('sale-modal').classList.add('hidden');
+  });
+</script>
+
+<script>
+  document.addEventListener('input', function (e) {
+    if (e.target.classList.contains('product-search')) {
+      const input = e.target;
+      const container = input.closest('.autocomplete-container');
+      const resultList = container.querySelector('.autocomplete-results');
+      const hiddenInput = container.querySelector('input[name="product_id[]"]');
+  
+      const query = input.value.trim();
+      if (query.length < 1) {
+        resultList.innerHTML = '';
+        return;
+      }
+  
+      fetch(`/ajax/get-products/?term=${encodeURIComponent(query)}`)
+        .then(response => response.json())
+        .then(data => {
+          resultList.innerHTML = '';
+          data.forEach(product => {
+            const li = document.createElement('li');
+            li.textContent = product.name;
+            li.dataset.id = product.id;
+            resultList.appendChild(li);
+          });
+        });
+    }
+  });
+  
+  document.addEventListener('click', function (e) {
+    if (e.target.tagName === 'LI' && e.target.parentElement.classList.contains('autocomplete-results')) {
+      const li = e.target;
+      const container = li.closest('.autocomplete-container');
+      const input = container.querySelector('.product-search');
+      const hiddenInput = container.querySelector('input[name="product_id[]"]');
+  
+      input.value = li.textContent;
+      hiddenInput.value = li.dataset.id;
+      container.querySelector('.autocomplete-results').innerHTML = '';
+      // Fetch batch info and calculate unit price
+        const productEntry = container.closest('.product-entry');
+        function showPopup(message) {
+    const popup = document.getElementById('popup-warning');
+    const text = document.getElementById('popup-warning-text');
+    text.textContent = message;
+    popup.style.display = 'block';
+  }
+        fetch(`/ajax/get-batch-info/${li.dataset.id}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error){
+                  showPopup(data.error);
+                  return;
+                }
+
+                const unitPriceInput = productEntry.querySelector('input[name="unit_price[]"]');
+                const { mrp, strips, tablets_per_strip,boxes } = data;
+
+                if (strips && tablets_per_strip) {
+                    const rate_per_tablet = mrp / (strips * tablets_per_strip*boxes);
+                    unitPriceInput.value = rate_per_tablet.toFixed(2);
+                }
+                 })
+  .catch(err => {
+    showPopup(err.message || "Error fetching batch info"); // 👈 Also show popup on error
+            });
+    } else {
+      document.querySelectorAll('.autocomplete-results').forEach(ul => ul.innerHTML = '');
+    }
+  });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    const modal = document.getElementById('sale-modal');
+    const detailsDiv = document.getElementById('sale-details');
+    const closeBtn = document.getElementById('close-sale-modal');
+    const downloadBtn = document.getElementById('download-btn');
+    let currentData = null;
+
+    document.querySelectorAll('.view-details-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const saleId = this.dataset.saleId;
+        fetch(`/ajax/sale-details/${saleId}/`)
+          .then(res => res.json())
+          .then(data => {
+            currentData = data;
+            const batchesHtml = data.batches.map(batch => `
+              <div class="bg-gray-100 p-3 rounded">
+                <strong>${batch.medicine}</strong><br>
+                Batch: ${batch.batch_code}, Qty: ${batch.quantity}, Selling: ₹${batch.selling_price}, Cost: ₹${batch.cost_price}, Exp: ${batch.expiry_date}
+              </div>
+            `).join('');
+
+            detailsDiv.innerHTML = `
+              <p><strong>Customer:</strong> ${data.customer_name}</p>
+              <p><strong>Date:</strong> ${data.date}</p>
+              <p><strong>GST:</strong> ₹${data.gst}</p>
+              <p><strong>Discount:</strong> ₹${data.discount}</p>
+              <p><strong>Subtotal:</strong> ₹${data.sub_total}</p>
+              <p><strong>Total:</strong> ₹${data.total_amount}</p>
+              <h3 class="font-bold mt-4">Items</h3>
+              ${batchesHtml}
+            `;
+            modal.classList.remove('hidden');
+          });
+      });
+    });
+
+    closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
+
+downloadBtn.addEventListener('click', () => {
+  if (!currentData) return;
+  window.jsPDF = window.jspdf.jsPDF;
+  const doc = new jsPDF(); // ✅ works directl
+  let y = 10;
+
+  const centerText = (text, y, fontSize = 12, fontStyle = 'normal') => {
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', fontStyle);
+    const textWidth = doc.getTextWidth(text);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.text(text, (pageWidth - textWidth) / 2, y);
+  };
+
+  // Header
+  centerText("Hrudeyaa Heart Care", y, 16, 'bold'); y += 7;
+  centerText("Bhanugudi Junction, Kakinada, Andhra Pradesh", y, 10); y += 5;
+  centerText("Phone: 9505999112", y, 10); y += 7;
+  centerText("Cash Receipt", y, 14, 'bold'); y += 10;
+
+  // Left & Right Info
+  const leftX = 14, rightX = 110, lineSpacing = 6;
+  doc.setFontSize(11).setFont('helvetica', 'bold');
+  doc.text("Customer Name:", leftX, y);
+  doc.setFont('helvetica', 'normal').text(currentData.customer_name || "-", leftX + 42, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'bold').text("Mobile Number:", leftX, y);
+  doc.setFont('helvetica', 'normal').text(currentData.mobile || "-", leftX + 42, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'bold').text("Patient ID:", leftX, y);
+  doc.setFont('helvetica', 'normal').text(currentData.patient_id || "-", leftX + 42, y);
+  y += lineSpacing;
+
+  doc.setFont('helvetica', 'bold').text("Referred Doctor:", leftX, y);
+  doc.setFont('helvetica', 'normal').text(currentData.referred_doctor || "-", leftX + 42, y);
+
+  // Add one line space
+  y += lineSpacing;
+
+  // Right Column Info
+  doc.setFont('helvetica', 'bold');
+  doc.text("Bill Number:", rightX, y - 3 * lineSpacing);
+  doc.setFont('helvetica', 'normal').text(String(currentData.bill_number || "-"), rightX + 30, y - 3 * lineSpacing);
+
+  doc.setFont('helvetica', 'bold').text("Bill Date:", rightX, y - 2 * lineSpacing);
+  doc.setFont('helvetica', 'normal').text(currentData.date || "-", rightX + 30, y - 2 * lineSpacing);
+
+  doc.setFont('helvetica', 'bold').text("Status:", rightX, y - 1 * lineSpacing);
+  doc.setFont('helvetica', 'normal').text("PAID", rightX + 30, y - 1 * lineSpacing);
+
+  // Table Headers
+  y += 6;
+  doc.setFontSize(10).setFont('helvetica', 'bold');
+  doc.text("#", 10, y);
+  doc.text("Item", 20, y);
+  doc.text("Batch", 55, y);
+  doc.text("HSN Code", 80, y);
+  doc.text("Exp", 110, y);
+  doc.text("Qty", 135, y);
+  doc.text("Price", 155, y);
+  doc.text("Amount", 180, y);
+  y += 2;
+  doc.line(10, y, 200, y); y += 6;
+
+  // Table Content
+  doc.setFont('helvetica', 'normal');
+  currentData.batches.forEach((b, i) => {
+    const price = Number(b.single_price || 0).toFixed(2);
+    const amount = (Number(b.single_price || 0) * Number(b.quantity || 0)).toFixed(2);
+    doc.text(String(i + 1), 10, y);
+    doc.text(b.medicine || "-", 20, y);
+    doc.text(b.batch_code || "-", 55, y);
+    doc.text(b.hsn_code || "-", 80, y);
+    doc.text(b.expiry_date || "-", 110, y);
+    doc.text(String(b.quantity || "-"), 137, y);
+    doc.text(price, 157, y);
+    doc.text(amount, 185, y);
+    y += 6;
+  });
+
+  doc.line(10, y - 3, 200, y - 3); y += 6;
+
+  // Totals Section
+  const totalsX = 130;
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Total Bill Amount: ${Number(currentData.sub_total || 0).toFixed(2)}`, totalsX, y); y += lineSpacing;
+  doc.text(`GST: ${Number(currentData.gst || 0).toFixed(2)}`, totalsX, y); y += lineSpacing;
+  doc.text(`Discount: ${Number(currentData.discount || 0).toFixed(2)}`, totalsX, y); y += lineSpacing;
+  doc.text(`Payable Amount: ${Number(currentData.total_amount || 0).toFixed(2)}`, totalsX, y); y += 12;
+
+  // Footer
+  doc.setFont('helvetica', 'italic').setFontSize(10);
+  const note = "This is a computer generated bill, no signature required.";
+  const w = doc.getTextWidth(note);
+  doc.text(note, (doc.internal.pageSize.getWidth() - w) / 2, y);
+  console.log("Generating PDF for:", currentData.customer_name);
+  doc.save(`Invoice-${currentData.customer_name || 'Bill'}.pdf`);
+});
+
+  });
+</script>
+</html>

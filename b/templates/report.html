@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack - Medical Stock Management</title>
+    <link rel="stylesheet" href="{% static 'tanu/styles.css' %}">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+</head>
+<body class="bg-gray-100 font-sans">
+<nav class="navbar">
+    <div class="nav-brand">
+      <img src="https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=50&h=50&fit=crop" alt="Logo" class="nav-logo">
+      <h1>MediTrack</h1>
+    </div>
+    <div class="nav-links">
+<a href="{% url 'index' %}" class="{% if request.path == '/index/' %}active{% endif %}">Dashboard</a>
+<a href="{% url 'purchase' %}" class="{% if request.path == '/purchase/' %}active{% endif %}">Purchase Stock</a>
+<a href="{% url 'sales' %}" class="{% if request.path == '/sales/' %}active{% endif %}">Sales</a>
+      <a href="{% url 'reports' %}" class="{% if request.path == '/reports/' %}active{% endif %}">Reports</a>
+    </div>
+  </nav>
+
+  <main class="max-w-4xl mx-auto mt-8">
+    <h2 class="text-2xl font-semibold text-gray-800 mb-4">📄 All Transactions</h2>
+
+    {% if transactions %}
+      <div class="bg-white rounded-lg shadow">
+        <ul class="divide-y">
+          {% for txn in transactions %}
+          <li class="p-4 flex justify-between items-center hover:bg-gray-50 transition">
+            <div>
+              <span class="text-sm font-semibold text-gray-700">{{ txn.name }}</span><br>
+              <span class="text-xs text-gray-500">{{ txn.date|date:"M d, Y H:i A" }}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-sm font-medium {% if txn.type == 'Sale' %}text-green-600{% else %}text-blue-600{% endif %}">{{ txn.type }}</span><br>
+              <span class="text-lg font-bold text-gray-800">₹{{ txn.amount|floatformat:2 }}</span>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <div class="flex justify-center mt-6 space-x-4 text-sm">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">← Prev</a>
+        {% endif %}
+
+        <span class="px-3 py-1 text-gray-700 font-medium">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded">Next →</a>
+        {% endif %}
+      </div>
+    {% else %}
+      <p class="text-gray-500 mt-6">No transactions found.</p>
+    {% endif %}
+  </main>
+</body>
+</html>

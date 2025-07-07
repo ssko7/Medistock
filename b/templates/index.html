@@ -1,0 +1,179 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediTrack - Medical Stock Management</title>
+    <link rel="stylesheet" href="{% static 'tanu/styles.css' %}">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="https://images.unsplash.com/photo-1584982751601-97dcc096659c?w=50&h=50&fit=crop" alt="Logo" class="nav-logo">
+            <h1>MediTrack</h1>
+        </div>
+        <div class="nav-links">
+<a href="{% url 'index' %}" class="{% if request.path == '/index/' %}active{% endif %}">Dashboard</a>
+<a href="{% url 'purchase' %}" class="{% if request.path == '/purchase/' %}active{% endif %}">Purchase Stock</a>
+<a href="{% url 'sales' %}" class="{% if request.path == '/sales/' %}active{% endif %}">Sales</a>
+      <a href="{% url 'reports' %}" class="{% if request.path == '/reports/' %}active{% endif %}">Reports</a>
+        </div>
+    </nav>
+
+    <main class="dashboard">
+        <div class="dashboard-header">
+            <h2>Dashboard Overview</h2>
+        <form method="GET" class="date-filter" style="margin-bottom: 1rem;">
+  <label>From:
+    <input type="date" name="start_date" value="{{ request.GET.start_date }}">
+  </label>
+  <label>To:
+    <input type="date" name="end_date" value="{{ request.GET.end_date }}">
+  </label>
+  <button type="submit" class="btn-primary">Filter</button>
+</form>
+
+
+
+            
+        </div>
+
+        <div class="stats-container">
+            <div class="stat-card">
+    <h3>Total Products</h3>
+    <p class="stat-number">{{ total_products }}</p>
+    <span class="stat-trend {% if total_products_change >= 0 %}positive{% else %}negative{% endif %}">
+        {% if total_products_change is not None %}
+            {% if total_products_change >= 0 %}+{% endif %}{{ total_products_change|floatformat:1 }}%
+        {% else %}
+            N/A
+        {% endif %}
+    </span>
+</div>
+
+<div class="stat-card">
+    <h3>Low Stock Items</h3>
+    <p class="stat-number">{{ low_stock_count }}</p>
+    <span class="stat-trend {% if low_stock_change >= 0 %}negative{% else %}positive{% endif %}">
+        {% if low_stock_change is not None %}
+            {% if low_stock_change >= 0 %}+{% endif %}{{ low_stock_change|floatformat:1 }}%
+        {% else %}
+            N/A
+        {% endif %}
+    </span>
+</div>
+
+<div class="stat-card">
+    <h3>Today's Sales</h3>
+    <p class="stat-number">₹{{ todays_sales_total|floatformat:2 }}</p>
+    <span class="stat-trend {% if todays_sales_change >= 0 %}positive{% else %}negative{% endif %}">
+        {% if todays_sales_change is not None %}
+            {% if todays_sales_change >= 0 %}+{% endif %}{{ todays_sales_change|floatformat:1 }}%
+        {% else %}
+            N/A
+        {% endif %}
+    </span>
+</div>
+
+<div class="stat-card">
+    <h3>Monthly Revenue</h3>
+    <p class="stat-number">₹{{ monthly_revenue|floatformat:2 }}</p>
+    <span class="stat-trend {% if monthly_revenue_change >= 0 %}positive{% else %}negative{% endif %}">
+        {% if monthly_revenue_change is not None %}
+            {% if monthly_revenue_change >= 0 %}+{% endif %}{{ monthly_revenue_change|floatformat:1 }}%
+        {% else %}
+            N/A
+        {% endif %}
+    </span>
+</div>
+
+<div class="stat-card">
+    <h3>Today's Sales (Profit)</h3>
+    <p class="stat-number">₹{{ todays_sales_total_profit|floatformat:2 }}</p>
+    <span class="stat-trend {% if todays_sales_change_profit >= 0 %}positive{% else %}negative{% endif %}">
+        {% if todays_sales_change_profit is not None %}
+            {% if todays_sales_change_profit >= 0 %}+{% endif %}{{ todays_sales_change_profit|floatformat:1 }}%
+        {% else %}
+            N/A
+        {% endif %}
+    </span>
+</div>
+
+<div class="stat-card">
+    <h3>Monthly Sales (Profit)</h3>
+    <p class="stat-number">₹{{ monthly_revenue_profit|floatformat:2 }}</p>
+    <span class="stat-trend {% if monthly_revenue_change_profit >= 0 %}positive{% else %}negative{% endif %}">
+        {% if monthly_revenue_change_profit is not None %}
+            {% if monthly_revenue_change_profit >= 0 %}+{% endif %}{{ monthly_revenue_change_profit|floatformat:1 }}%
+        {% else %}
+            N/A
+        {% endif %}
+    </span>
+</div>
+
+<div class="stat-card">
+    <h3>Annual Sales</h3>
+    <p class="stat-number">₹{{ annual_sales_total|floatformat:2 }}</p>
+</div>
+
+<div class="stat-card">
+    <h3>Annual Sales (Profit)</h3>
+    <p class="stat-number">₹{{ annual_sales_profit|floatformat:2 }}</p>
+</div>
+{% if range_sales_total %}
+<div class="stat-card">
+  <h3>Sales ({{ selected_start_date }}  to {{ selected_end_date }})</h3>
+  <p class="stat-number">₹{{ range_sales_total|floatformat:2 }}</p>
+</div>
+<div class="stat-card">
+  <h3>Profit ({{ selected_start_date }} to {{ selected_end_date }})</h3>
+  <p class="stat-number">₹{{ range_sales_profit|floatformat:2 }}</p>
+</div>
+{% endif %}
+        </div>
+
+        <div class="dashboard-grid">
+            <section class="low-stock">
+                <div class="section-header">
+                    <h3>Low Stock Alert</h3>
+                    <a href="{% url 'purchase' %}" ><button class="btn-primary">Order Now</button> </a>
+                </div>
+                <div class="stock-list">
+                    {% for batch in low_stock_batches %}
+                    <div class="stock-item {% if batch.quantity_remaining == 0 %}critical{% else %}warning{% endif %}">
+                        <span class="item-name">{{ batch.medicine.name }}</span>
+                        <span class="stock-count">{{ batch.quantity_remaining }} units</span>
+                        <span class="reorder-level">Min: {{ batch.medicine.min_quantity }}</span>
+                    </div>
+                    {% empty %}
+                    <p>No low stock items.</p>
+                    {% endfor %}
+
+                </div>
+            </section>
+
+            <section class="recent-transactions">
+                <div class="section-header">
+                    <h3>Recent Transactions</h3>
+                    <a href="{% url 'reports' %}" ><button class="btn-secondary">View All</button> </a>
+                </div>
+                <div class="transaction-list">
+                    {% for tx in recent_transactions %}
+  <div class="transaction-item {{ tx.type }}">
+    <div class="transaction-info">
+      <h4>{{ tx.name }}</h4>
+      <p>{{ tx.time|date:"M d, H:i A" }}</p>
+    </div>
+    <span class="amount">₹{{ tx.amount|floatformat:2 }}</span>
+  </div>
+{% endfor %}
+
+                </div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>
