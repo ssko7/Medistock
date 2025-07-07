@@ -3,6 +3,7 @@ from .views import index,purchase,sales,get_products,purchase_details,sale_detai
 
 
 urlpatterns = [
+    path('', index, name='index'),
     path('index/', index, name='index'),
     path('purchase/', purchase, name='purchase'),
     path('sales/', sales, name='sales'),
